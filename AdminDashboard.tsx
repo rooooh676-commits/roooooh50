@@ -47,8 +47,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleAISuggestForUpload = async () => {
     setIsUploading(true);
-    const meta = await generateVideoMetadata(uploadCategory);
-    setUploadTitle(meta.title);
+    try {
+      const meta = await generateVideoMetadata(uploadCategory);
+      setUploadTitle(meta.title);
+    } catch(e) {}
     setIsUploading(false);
   };
 
@@ -193,8 +195,10 @@ const VideoEditor: React.FC<{ video: Video, categories: string[], onClose: () =>
 
   const handleAIEdit = async () => {
     setLoadingAI(true);
-    const meta = await generateVideoMetadata(v.category);
-    setV(prev => ({ ...prev, title: meta.title, tags: meta.tags }));
+    try {
+      const meta = await generateVideoMetadata(v.category);
+      setV(prev => ({ ...prev, title: meta.title, tags: meta.tags }));
+    } catch(e) {}
     setLoadingAI(false);
   };
 

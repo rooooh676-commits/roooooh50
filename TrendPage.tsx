@@ -17,26 +17,24 @@ const TrendPage: React.FC<TrendPageProps> = ({ onPlayShort, onPlayLong, excluded
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchCloudinaryVideos().then(data => { setRawTrends(data); setLoading(false); });
+    fetchCloudinaryVideos().then(data => { 
+      setRawTrends(data); 
+      setLoading(false); 
+    }).catch(() => setLoading(false));
   }, []);
 
   const trendVideos = useMemo(() => {
-    // 1. الفيديوهات التي حددها المطور كرائجة
     const featured = rawTrends.filter(v => v.isFeatured && !excludedIds.includes(v.id));
-    
-    // 2. أحدث 10 فيديوهات تمت إضافتها (بناءً على تاريخ الإنشاء)
     const recent = [...rawTrends]
       .filter(v => !excludedIds.includes(v.id))
       .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
       .slice(0, 10);
 
-    // 3. دمج المجموعتين وحذف التكرار
     const combined = [...featured];
     recent.forEach(rv => {
       if (!combined.find(cv => cv.id === rv.id)) combined.push(rv);
     });
 
-    // الترتيب: المختار من المطور أولاً ثم حسب عدد المشاهدات
     return combined.sort((a, b) => {
       if (a.isFeatured && !b.isFeatured) return -1;
       if (!a.isFeatured && b.isFeatured) return 1;
