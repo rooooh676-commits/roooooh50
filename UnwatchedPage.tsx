@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useMemo } from 'react';
-import { Video } from '../types';
+import { Video } from './types';
 
 interface UnwatchedPageProps {
   watchHistory: { id: string, progress: number }[];

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Video, UserInteractions } from '../types';
+import { Video, UserInteractions } from './types';
 
 interface HiddenVideosPageProps {
   interactions: UserInteractions;
