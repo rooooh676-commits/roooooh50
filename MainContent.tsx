@@ -60,9 +60,8 @@ const VideoCardThumbnail: React.FC<{
 
   useEffect(() => {
     const v = videoRef.current;
-    if (!v) return;
-    if (isOverlayActive) {
-      v.pause();
+    if (!v || isOverlayActive) {
+      v?.pause();
       return;
     }
     const observer = new IntersectionObserver(([entry]) => {
@@ -82,7 +81,7 @@ const VideoCardThumbnail: React.FC<{
   if (!video) return <div className="w-full h-full bg-neutral-900 animate-pulse rounded-2xl border-2 border-white/5" />;
 
   return (
-    <div className={`w-full h-full relative bg-neutral-950 overflow-hidden group rounded-2xl border-2 transition-all duration-500 ${neonStyle} hover:scale-[1.01]`}>
+    <div className={`w-full h-full relative bg-neutral-900 overflow-hidden group rounded-2xl border-2 transition-all duration-500 ${neonStyle} hover:scale-[1.01]`}>
       <video 
         ref={videoRef} 
         src={video.video_url} 
@@ -90,7 +89,8 @@ const VideoCardThumbnail: React.FC<{
         muted 
         loop 
         playsInline 
-        className="w-full h-full object-cover opacity-100 contrast-110 saturate-125 transition-all duration-700 pointer-events-none" 
+        crossOrigin="anonymous"
+        className="w-full h-full object-cover opacity-100 transition-opacity duration-700 pointer-events-none" 
       />
       
       <div className="absolute top-2 right-2 flex flex-col items-center gap-1 z-30">
@@ -104,8 +104,8 @@ const VideoCardThumbnail: React.FC<{
         </button>
       </div>
 
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 z-20 pointer-events-none">
-        <p className="text-white text-[11px] font-black line-clamp-1 italic text-right leading-tight drop-shadow-[0_2px_4_black]">{video.title}</p>
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-3 z-20 pointer-events-none">
+        <p className="text-white text-[11px] font-black line-clamp-1 italic text-right drop-shadow-[0_2px_4_black]">{video.title}</p>
         <div className="flex items-center justify-end gap-1 mt-1">
           <span className="text-[8px] font-black text-white/80">{formatBigNumber(stats.likes)} إعجاب</span>
         </div>
@@ -131,6 +131,7 @@ export const InteractiveMarquee: React.FC<{
 
   const displayVideos = useMemo(() => {
     if (!videos || videos.length === 0) return [];
+    // Ensure we have enough items for scrolling effect
     return [...videos, ...videos, ...videos];
   }, [videos]);
 
@@ -153,7 +154,7 @@ export const InteractiveMarquee: React.FC<{
   if (displayVideos.length === 0) return null;
 
   return (
-    <div className={`relative overflow-hidden w-full ${isShorts ? 'h-64' : 'h-36'} bg-neutral-900/10 border-y border-white/5`} dir="ltr">
+    <div className={`relative overflow-hidden w-full ${isShorts ? 'h-64' : 'h-36'} bg-neutral-900/10 border-y border-white/5 mb-6`} dir="ltr">
       <div 
         ref={containerRef}
         onMouseDown={(e) => { setIsDragging(true); setStartX(e.pageX - (containerRef.current?.offsetLeft || 0)); setScrollLeftState(containerRef.current?.scrollLeft || 0); }}
@@ -164,7 +165,7 @@ export const InteractiveMarquee: React.FC<{
       >
         {displayVideos.map((item, idx) => (
           <div key={`${item.id}-${idx}`} onClick={() => !isDragging && onPlay(item)} className={`${isShorts ? 'w-36 h-56' : 'w-52 h-32'} shrink-0 rounded-2xl overflow-hidden border-2 relative active:scale-95 transition-all ${getNeonColor(item.id)}`} dir="rtl">
-            <video src={item.video_url} muted loop playsInline autoPlay className="w-full h-full object-cover pointer-events-none" />
+            <video src={item.video_url} muted loop playsInline autoPlay crossOrigin="anonymous" className="w-full h-full object-cover pointer-events-none" />
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2.5 backdrop-blur-[1px]">
               <p className="text-[10px] font-black text-white truncate italic text-right leading-none">{item.title}</p>
             </div>
@@ -178,10 +179,11 @@ export const InteractiveMarquee: React.FC<{
 const MainContent: React.FC<any> = ({ 
   videos, categoriesList, interactions, onPlayShort, onPlayLong, onCategoryClick, onHardRefresh, onOfflineClick, loading, isOverlayActive, onLike
 }) => {
-  const safeVideos = useMemo(() => videos || [], [videos]);
+  const safeVideos = useMemo(() => Array.isArray(videos) ? videos : [], [videos]);
   const shortsOnly = useMemo(() => safeVideos.filter((v: Video) => v && v.type === 'short'), [safeVideos]);
   const longsOnly = useMemo(() => safeVideos.filter((v: Video) => v && v.type === 'long'), [safeVideos]);
 
+  // التصميم المطلوب: 4 فيديوهات طويلة فوق بعضها، ثم 4 فيديوهات قصيرة في شبكة 2x2
   const top4Longs = useMemo(() => longsOnly.slice(0, 4), [longsOnly]);
   const top4Shorts = useMemo(() => shortsOnly.slice(0, 4), [shortsOnly]);
   const marqueeShorts = useMemo(() => shortsOnly.slice(4, 16), [shortsOnly]);
@@ -189,17 +191,17 @@ const MainContent: React.FC<any> = ({
 
   return (
     <div className="flex flex-col pb-20 w-full bg-black min-h-screen" dir="rtl">
-      <header className="flex items-center justify-between py-3 bg-black sticky top-0 z-[110] px-4 border-b border-white/5">
+      <header className="flex items-center justify-between py-3 bg-black sticky top-0 z-[110] px-4 border-b border-white/5 shadow-md">
         <div className="flex items-center gap-2" onClick={onHardRefresh}>
           <img src={LOGO_URL} className={`w-9 h-9 rounded-full border-2 border-red-600 shadow-[0_0_10px_red] ${loading ? 'animate-spin' : ''}`} />
           <h1 className="text-base font-black italic text-red-600">الحديقة المرعبة</h1>
         </div>
-        <button onClick={onOfflineClick} className="p-2 bg-neutral-900 rounded-xl border border-white/10 text-cyan-400">
+        <button onClick={onOfflineClick} className="p-2 bg-neutral-900 rounded-xl border border-white/10 text-cyan-400 active:scale-90 transition-transform">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 21c4.97 0 9-4.03 9-9s-4.03-9-9-9-9 4.03-9 9 4.03 9 9 9z" /><path d="M12 17v-4m-2 2l2 2 2-2" stroke="currentColor" strokeWidth="2"/></svg>
         </button>
       </header>
 
-      <nav className="relative h-14 bg-black/95 backdrop-blur-2xl z-[100] border-b border-white/10 sticky top-[60px] overflow-x-auto scrollbar-hide flex items-center px-4">
+      <nav className="relative h-14 bg-black/95 backdrop-blur-2xl z-[100] border-b border-white/10 sticky top-[60px] overflow-x-auto scrollbar-hide flex items-center px-4 mb-4">
         <div className="flex items-center gap-3">
           {categoriesList?.map((cat: string) => (
             <button key={cat} onClick={() => onCategoryClick(cat)} className="neon-white-led shrink-0 px-5 py-1.5 rounded-full text-[10px] font-black text-white italic whitespace-nowrap">{cat}</button>
@@ -210,38 +212,55 @@ const MainContent: React.FC<any> = ({
       {loading && safeVideos.length === 0 ? (
         <div className="flex flex-col items-center justify-center pt-20 gap-4">
           <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-red-600 font-black italic animate-pulse">يتم استدعاء الأرواح...</span>
+          <span className="text-red-600 font-black italic animate-pulse">يتم استدعاء الأرواح من السحاب...</span>
+        </div>
+      ) : safeVideos.length === 0 ? (
+        <div className="flex flex-col items-center justify-center pt-20 gap-4 opacity-50">
+           <p className="text-white font-black italic">لا توجد فيديوهات متاحة حالياً.</p>
+           <button onClick={onHardRefresh} className="text-red-600 underline">إعادة تحميل</button>
         </div>
       ) : (
         <>
-          <SectionHeader title="أساطير القبو الطويلة" color="bg-cyan-500" />
+          {/* القسم الأول: 4 فيديوهات طويلة فوق بعضها */}
+          <SectionHeader title="عرض الأساطير الطويلة" color="bg-cyan-500" />
           <div className="px-4 space-y-4 mb-8">
-            {top4Longs.map((v) => (
+            {top4Longs.length > 0 ? top4Longs.map((v) => (
               <div key={v.id} onClick={() => onPlayLong(v, longsOnly)} className="aspect-video w-full">
                 <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} />
               </div>
-            ))}
+            )) : <div className="h-40 bg-white/5 rounded-2xl animate-pulse flex items-center justify-center text-xs text-gray-500">لا توجد فيديوهات طويلة حالياً</div>}
           </div>
 
-          <SectionHeader title="ومضات مرعبة (شورتي)" color="bg-yellow-500" />
+          {/* القسم الثاني: 4 فيديوهات قصيرة شبكة 2x2 */}
+          <SectionHeader title="ومضات مرعبة سريعة" color="bg-yellow-500" />
           <div className="px-4 grid grid-cols-2 gap-4 mb-8">
-            {top4Shorts.map((v) => (
+            {top4Shorts.length > 0 ? top4Shorts.map((v) => (
               <div key={v.id} onClick={() => onPlayShort(v, shortsOnly)} className="aspect-[9/16]">
                 <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} />
               </div>
-            ))}
+            )) : <div className="col-span-2 h-40 bg-white/5 rounded-2xl animate-pulse flex items-center justify-center text-xs text-gray-500">لا توجد فيديوهات قصيرة حالياً</div>}
           </div>
 
-          <SectionHeader title="شريط الرعب السريع" color="bg-red-500" />
-          <InteractiveMarquee videos={marqueeShorts} onPlay={(v) => onPlayShort(v, shortsOnly)} isShorts={true} />
+          {/* القسم الثالث: شريط الشورت */}
+          {marqueeShorts.length > 0 && (
+            <>
+              <SectionHeader title="المختار من القبو (شورتي)" color="bg-red-500" />
+              <InteractiveMarquee videos={marqueeShorts} onPlay={(v) => onPlayShort(v, shortsOnly)} isShorts={true} />
+            </>
+          )}
 
-          <SectionHeader title="أساطير مرئية" color="bg-emerald-500" />
-          <InteractiveMarquee videos={marqueeLongs} onPlay={(v) => onPlayLong(v, longsOnly)} />
+          {/* القسم الرابع: شريط الطويل */}
+          {marqueeLongs.length > 0 && (
+            <>
+              <SectionHeader title="أهوال حصرية مختارة" color="bg-emerald-500" />
+              <InteractiveMarquee videos={marqueeLongs} onPlay={(v) => onPlayLong(v, longsOnly)} />
+            </>
+          )}
         </>
       )}
       
       <div className="w-full py-10 flex justify-center opacity-20">
-         <span className="text-[10px] font-black text-white italic">VAULT SECURE SYSTEM</span>
+         <span className="text-[10px] font-black text-white italic">VAULT SECURE SYSTEM - CLOUD CONNECTED</span>
       </div>
     </div>
   );

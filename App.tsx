@@ -34,6 +34,7 @@ const App: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [rawVideos, setRawVideos] = useState<Video[]>([]); 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedShort, setSelectedShort] = useState<{ video: Video, list: Video[] } | null>(null);
   const [selectedLong, setSelectedLong] = useState<{ video: Video, list: Video[] } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -56,22 +57,31 @@ const App: React.FC = () => {
   };
 
   const loadData = useCallback(async (isHardRefresh = false) => {
-    if (isHardRefresh) setLoading(true);
+    if (isHardRefresh || rawVideos.length === 0) setLoading(true);
+    setError(null);
     try {
       const data = await fetchCloudinaryVideos();
       if (data && data.length > 0) {
-        const recommendedOrder = await getRecommendedFeed(data, interactions);
-        const orderedVideos = recommendedOrder
-          .map(id => data.find(v => v.id === id || v.public_id === id))
-          .filter((v): v is Video => !!v);
+        // We attempt recommendations but don't block on them if they fail
+        try {
+          const recommendedOrder = await getRecommendedFeed(data, interactions);
+          const orderedVideos = recommendedOrder
+            .map(id => data.find(v => v.id === id || v.public_id === id))
+            .filter((v): v is Video => !!v);
 
-        const remaining = data.filter(v => !recommendedOrder.includes(v.id) && !recommendedOrder.includes(v.public_id));
-        setRawVideos([...orderedVideos, ...remaining]);
+          const remaining = data.filter(v => !recommendedOrder.includes(v.id) && !recommendedOrder.includes(v.public_id));
+          setRawVideos([...orderedVideos, ...remaining]);
+        } catch (recErr) {
+          console.warn("Recommendation engine error, using raw order:", recErr);
+          setRawVideos(data);
+        }
       } else {
         setRawVideos([]);
+        setError("لم يتم العثور على فيديوهات. تأكد من إعدادات Cloudinary (Resource List).");
       }
     } catch (err) {
       console.error("Load Error:", err);
+      setError("فشل الاتصال بالمستودع السحابي. يرجى التحقق من الإنترنت.");
     } finally {
       setLoading(false);
     }
@@ -134,6 +144,16 @@ const App: React.FC = () => {
       );
     }
 
+    if (error && rawVideos.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center h-[60vh] gap-6 px-10 text-center">
+          <svg className="w-16 h-16 text-red-600/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <p className="text-red-500 font-black italic leading-relaxed">{error}</p>
+          <button onClick={() => loadData(true)} className="bg-red-600 px-6 py-2 rounded-xl font-bold">تحديث الاتصال</button>
+        </div>
+      );
+    }
+
     const filteredVideos = rawVideos.filter(v => !interactions.dislikedIds.includes(v.id));
 
     switch(currentView) {
@@ -145,6 +165,8 @@ const App: React.FC = () => {
         return <TrendPage onPlayShort={(v, l) => setSelectedShort({video:v, list:l})} onPlayLong={(v) => setSelectedLong({video:v, list:rawVideos.filter(x=>x.type==='long')})} excludedIds={interactions.dislikedIds} />;
       case AppView.LIKES:
         return <SavedPage savedIds={interactions.likedIds} savedCategories={[]} allVideos={rawVideos} onPlayShort={(v, l) => setSelectedShort({video:v, list:l})} onPlayLong={(v) => setSelectedLong({video:v, list:rawVideos.filter(x=>x.type==='long')})} title="الإعجابات" onCategoryClick={(c) => { setActiveCategory(c); setCurrentView(AppView.CATEGORY); }} />;
+      case AppView.HIDDEN:
+        return <Suspense fallback={null}><HiddenVideosPage interactions={interactions} allVideos={rawVideos} onRestore={(id) => setInteractions(p => ({...p, dislikedIds: p.dislikedIds.filter(x => x !== id)}))} onPlayShort={(v, l) => setSelectedShort({video:v, list:l})} onPlayLong={(v) => setSelectedLong({video:v, list:rawVideos.filter(x=>x.type==='long')})} /></Suspense>;
       default:
         return (
           <MainContent 
